@@ -5,6 +5,7 @@ class Player : public physical
 {
 public:
   int hp = 100;
+  int speed = 40;
 
   std::map<std::string, int> intentions;
 
@@ -22,16 +23,13 @@ public:
     //     size = {50, 50};
     // }
 
-/**
- * applies and clears intentions
- * */
  void apply_intent() {
    acceleration = {0, 0};
    if (intentions.count("left")) {
-     acceleration[0] += -100;
+     acceleration[0] += -100 * speed;
    }
    if (intentions.count("right")) {
-     acceleration[0] += 100;
+     acceleration[0] += 100 * speed;
    }
 
    intentions.clear();

@@ -12,7 +12,7 @@ inline T1 operator+(const T1& a, const T2& b) {
     return ret;
 }
 
-inline std::array<double,2> operator*(const std::array<double,2>& a, const std::array<double,2>& b) { 
+inline std::array<double,2> operator*(const std::array<double,2>& a, const std::array<double,2>& b) {
     std::array<double,2> ret = a;
     for (unsigned i = 0; i < a.size();i++) ret[i] *= b[i];
     return ret;
@@ -21,6 +21,12 @@ inline std::array<double,2> operator*(const std::array<double,2>& a, const std::
 inline std::array<double,2> operator*(const std::array<double,2>& a, double b) {
     std::array<double,2> ret = a;
     for (unsigned i = 0; i < a.size();i++) ret[i] *= b;
+    return ret;
+}
+
+inline std::array<double,2> operator/(const std::array<double,2>& a, double b) {
+    std::array<double,2> ret = a;
+    for (unsigned i = 0; i < a.size();i++) ret[i] /= b;
     return ret;
 }
 
