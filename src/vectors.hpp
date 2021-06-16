@@ -18,8 +18,23 @@ inline std::array<double,2> operator*(const std::array<double,2>& a, const std::
     return ret;
 }
 
+//arr<double> * double
 inline std::array<double,2> operator*(const std::array<double,2>& a, double b) {
     std::array<double,2> ret = a;
+    for (unsigned i = 0; i < a.size();i++) ret[i] *= b;
+    return ret;
+}
+
+//arr<double> * int
+inline std::array<double,2> operator*(const std::array<double,2>& a, int b) {
+    std::array<double,2> ret = a;
+    for (unsigned i = 0; i < a.size();i++) ret[i] *= b;
+    return ret;
+}
+
+//arr<int> * int
+inline std::array<int,2> operator*(const std::array<int,2>& a, int b) {
+    std::array<int,2> ret = a;
     for (unsigned i = 0; i < a.size();i++) ret[i] *= b;
     return ret;
 }

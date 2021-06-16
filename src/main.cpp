@@ -26,7 +26,7 @@ void draw_sprite(std::shared_ptr<SDL_Renderer> r, std::array<double, 2> p, std::
     SDL_RenderCopyEx(r.get(), tex.get(), NULL, &dst_rect, alpha, NULL, SDL_RendererFlip::SDL_FLIP_NONE);
 }
 
-Game init_all(){
+Game init_all(std::array<int, 2> windowRealSize, int meterToPixels){
   Game game;
 
   using namespace std;
@@ -52,7 +52,7 @@ Game init_all(){
           [](auto* renderer) { SDL_DestroyRenderer(renderer); });
 
       SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
-      SDL_RenderSetLogicalSize(game.renderer_p.get(), 1080, 720);
+      SDL_RenderSetLogicalSize(game.renderer_p.get(), windowRealSize[0] * meterToPixels, windowRealSize[1] * meterToPixels);
 
       // Load textures
       game.playerTexture = shared_ptr<SDL_Texture>(IMG_LoadTexture(game.renderer_p.get(), "data/player.png"),[](auto* tex) { SDL_DestroyTexture(tex); });
@@ -65,28 +65,30 @@ Game init_all(){
       return game;
 }
 
-void drawstuff(Game& game)
+void drawstuff(Game& game, int meterToPixels)
 {
+  using namespace tp::operators;
+
   SDL_SetRenderDrawColor(game.renderer_p.get(), 135, 206, 235, 255);
   SDL_RenderClear(game.renderer_p.get());
   SDL_SetRenderDrawColor(game.renderer_p.get(), 255, 100, 200, 255);
 
   // Draw player
-  draw_sprite(game.renderer_p, game.player.position, game.playerTexture, game.player.size, 0);
+  draw_sprite(game.renderer_p, game.player.position * meterToPixels, game.playerTexture, game.player.get_scaled_size(meterToPixels), 0);
 
   // Draw mouse pointer
   draw_sprite(game.renderer_p, {game.mouseX, game.mouseY}, game.mouseTexture, {20,20}, 0);
 
   //Draw bullet
   // TEMP draw visualization line for projectail to shoot
-  SDL_RenderDrawLine(game.renderer_p.get(), game.player.position[0], game.player.position[1], game.mouseX, game.mouseY);
+  //SDL_RenderDrawLine(game.renderer_p.get(), game.player.position[0], game.player.position[1], game.mouseX, game.mouseY);
   if(game.projectail.isActive){
-    draw_sprite(game.renderer_p, game.projectail.position, game.projectailTexture, game.projectail.size, 0);
+    draw_sprite(game.renderer_p, game.projectail.position * meterToPixels, game.projectailTexture, game.projectail.get_scaled_size(meterToPixels), 0);
   }
 
   // Ground
-  SDL_SetRenderDrawColor(game.renderer_p.get(), 255, 255, 255, 255);
-  SDL_RenderDrawLine(game.renderer_p.get(), 0, 650, 1024, 650);
+  //SDL_SetRenderDrawColor(game.renderer_p.get(), 255, 255, 255, 255);
+  //SDL_RenderDrawLine(game.renderer_p.get(), 0, 650, 1024, 650);
 
   SDL_RenderPresent(game.renderer_p.get());
 }
@@ -98,7 +100,9 @@ int main(int, char**)
     using namespace tp::operators;
 
     // Initialization
-    Game game = init_all();
+    int meterToPixels = 100;
+    std::array<int, 2> windowRealSize = {15, 10};
+    Game game = init_all(windowRealSize,meterToPixels);
 
     // Looptime setup
     milliseconds deltaTime(15);
@@ -126,17 +130,13 @@ int main(int, char**)
 
             if(event.type == SDL_MOUSEBUTTONUP){
               if(SDL_BUTTON_LEFT && !game.projectail.isActive){
-                //end the timer and shoot projectail (acceleration = 0, instanciate projectail)
-                game.projectail.strenght = (clock() - game.strenght_timer / (double) CLOCKS_PER_SEC) / 360;
-                cout << game.projectail.strenght << endl;
-                game.projectail.position = game.player.position;
-                game.projectail.isActive = true;
+                //end the timer and shoot projectail
+                game.projectail.strenght = ((clock() - game.strenght_timer) / (double) CLOCKS_PER_SEC) * 100;
+                game.projectail.instanciate(game.player, game.mouseX, game.mouseY);
 
                 //set acceleration of bullet to normilized vector of direction times strenght
-                std::array<double, 2> vec = game.player.position - std::array<double, 2>{game.mouseX, game.mouseY};
-                std::array<double, 2> direction = vec / sqrt(vec[0]*vec[0]+vec[1]*vec[1]) * -1;
-                game.projectail.acceleration = direction * game.projectail.strenght;
-
+                //std::array<double, 2> vec = game.player.position - std::array<double, 2>{game.mouseX, game.mouseY};
+                //game.projectail.direction = (vec / sqrt(vec[0]*vec[0]+vec[1]*vec[1])) * -1;
               }
             }
 
@@ -144,34 +144,40 @@ int main(int, char**)
 
         // Keyboard input
         auto kbdstate = SDL_GetKeyboardState(NULL);
-        if (kbdstate[SDL_SCANCODE_LEFT]) game.player.intentions["left"] = 1;
-        if (kbdstate[SDL_SCANCODE_RIGHT]) game.player.intentions["right"] = 1;
+        if (kbdstate[SDL_SCANCODE_A]) game.player.intentions["left"] = 1;
+        if (kbdstate[SDL_SCANCODE_D]) game.player.intentions["right"] = 1;
+        if (kbdstate[SDL_SCANCODE_W]) game.player.intentions["up"] = 1;
 
         // Physics
         // Physical update time
         double deltaTime_physics = deltaTime.count() / 1000.0;
+        //temp solution
+        if (!(game.player.position[1] < 9.9 - (game.player.size[1]/2))) {
+          game.player.position[1] = 9.9 - (game.player.size[1]/2);
+          game.player.isGrounded = true;
+        }
         game.player.apply_intent();
-        game.player.update(deltaTime_physics, [&](auto p, auto pos, auto vel){
-          //temp solution
-            if (pos[1] < 650) {
-                p->position = pos;
-                p->velocity = vel;
-            } else {
-                p->velocity = {vel[0],0};
-                p->position[0] = pos[0];
-            }
-        });
+        game.player.update(deltaTime_physics);
+        //devStuff
+        //game.player.write();
 
         //Projectail
         if(game.projectail.isActive){
-          game.projectail.update(deltaTime_physics, [&](auto p, auto pos, auto vel){
-              p->position = pos;
-              p->velocity = vel;
-          });
+          //Border
+          if (game.projectail.position[0] < 0 || game.projectail.position[0] > windowRealSize[0]-0.1 || game.projectail.position[1] < 0 || game.projectail.position[1] > windowRealSize[1]-0.1) {
+            game.projectail.destroy();
+            cout << "out of borders" << endl;
+          }
+
+          //Physical update
+          //game.projectail.applyAcceleration();
+          game.projectail.update(deltaTime_physics);
+          //devStuff
+          game.projectail.write();
         }
 
         // Graphics
-        drawstuff(game);
+        drawstuff(game, meterToPixels);
 
         // Loop clock
         this_thread::sleep_until(current_time = current_time + deltaTime);
